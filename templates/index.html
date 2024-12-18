@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Audio Noise Reducer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            background-color: #f5f5f5;
+            padding: 20px;
+            border-radius: 5px;
+        }
+        .progress-container {
+            margin: 20px 0;
+            display: none;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #f0f0f0;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .progress {
+            width: 0%;
+            height: 100%;
+            background-color: #4CAF50;
+            transition: width 0.3s ease-in-out;
+        }
+        .status {
+            margin-top: 10px;
+            color: #666;
+        }
+        .error {
+            color: #ff0000;
+        }
+        .controls {
+            margin: 20px 0;
+        }
+        .controls label {
+            display: block;
+            margin: 10px 0;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:disabled {
+            background-color: #cccccc;
+        }
+        .audio-player {
+            margin: 20px 0;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            display: none;
+        }
+        .audio-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .time-slider {
+            flex-grow: 1;
+            height: 5px;
+            background: #ddd;
+            border-radius: 2px;
+            cursor: pointer;
+        }
+        .time-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 15px;
+            height: 15px;
+            background: #4CAF50;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        .time-display {
+            font-family: monospace;
+            min-width: 100px;
+            text-align: center;
+        }
+        .play-pause {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .volume-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .volume-slider {
+            width: 100px;
+        }
+        .download-section {
+            margin-top: 15px;
+            text-align: center;
+        }
+        
+        .download-btn {
+            background-color: #2196F3;
+            padding: 10px 25px;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 0 auto;
+        }
+        
+        .download-btn:hover {
+            background-color: #1976D2;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Audio Noise Reducer</h1>
+        
+        <div class="controls">
+            <label>
+                Input File:
+                <input type="file" id="audioFile" accept=".wav,.mp3,.ogg,.flac,.m4a">
+            </label>
+            
+            <label>
+                Noise Reduction Strength (0.1 - 6.0):
+                <input type="range" id="strength" min="0.1" max="6.0" step="0.1" value="1.0">
+                <span id="strengthValue">1.0</span>
+            </label>
+            
+            <label>
+                Output Format:
+                <select id="format">
+                    <option value="wav">WAV</option>
+                    <option value="mp3">MP3</option>
+                    <option value="ogg">OGG</option>
+                    <option value="flac">FLAC</option>
+                </select>
+            </label>
+            
+            <button id="processButton" onclick="processAudio()">Process Audio</button>
+        </div>
+        
+        <div class="progress-container" id="progressContainer">
+            <div class="progress-bar">
+                <div class="progress" id="progress"></div>
+            </div>
+            <div class="status" id="status">Processing...</div>
+        </div>
+
+        <div class="audio-player" id="audioPlayer">
+            <h3>Preview Processed Audio</h3>
+            <div class="audio-controls">
+                <button class="play-pause" id="playPauseBtn">▶</button>
+                <input type="range" class="time-slider" id="timeSlider" min="0" max="100" value="0">
+                <div class="time-display" id="timeDisplay">0:00 / 0:00</div>
+            </div>
+            <div class="volume-control">
+                <span>Volume:</span>
+                <input type="range" class="volume-slider" id="volumeSlider" min="0" max="1" step="0.1" value="1">
+            </div>
+            <audio id="audioElement"></audio>
+            <div class="download-section">
+                <button id="downloadBtn" onclick="downloadAudio()" class="download-btn">
+                    <span>⬇️ Download</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentTaskId = null;
+        let audioElement = document.getElementById('audioElement');
+        let playPauseBtn = document.getElementById('playPauseBtn');
+        let timeSlider = document.getElementById('timeSlider');
+        let timeDisplay = document.getElementById('timeDisplay');
+        let volumeSlider = document.getElementById('volumeSlider');
+        let audioPlayer = document.getElementById('audioPlayer');
+        
+        document.getElementById('strength').addEventListener('input', function(e) {
+            document.getElementById('strengthValue').textContent = e.target.value;
+        });
+
+        // Audio player controls
+        playPauseBtn.addEventListener('click', function() {
+            if (audioElement.paused) {
+                audioElement.play();
+                playPauseBtn.textContent = '⏸';
+            } else {
+                audioElement.pause();
+                playPauseBtn.textContent = '▶';
+            }
+        });
+
+        timeSlider.addEventListener('input', function() {
+            const time = (timeSlider.value / 100) * audioElement.duration;
+            audioElement.currentTime = time;
+        });
+
+        volumeSlider.addEventListener('input', function() {
+            audioElement.volume = volumeSlider.value;
+        });
+
+        audioElement.addEventListener('timeupdate', function() {
+            const percent = (audioElement.currentTime / audioElement.duration) * 100;
+            timeSlider.value = percent;
+            
+            const currentMinutes = Math.floor(audioElement.currentTime / 60);
+            const currentSeconds = Math.floor(audioElement.currentTime % 60);
+            const totalMinutes = Math.floor(audioElement.duration / 60);
+            const totalSeconds = Math.floor(audioElement.duration % 60);
+            
+            timeDisplay.textContent = `${currentMinutes}:${currentSeconds.toString().padStart(2, '0')} / ${totalMinutes}:${totalSeconds.toString().padStart(2, '0')}`;
+        });
+
+        audioElement.addEventListener('ended', function() {
+            playPauseBtn.textContent = '▶';
+        });
+        
+        async function processAudio() {
+            const fileInput = document.getElementById('audioFile');
+            const strengthInput = document.getElementById('strength');
+            const formatSelect = document.getElementById('format');
+            const progressContainer = document.getElementById('progressContainer');
+            const progressBar = document.getElementById('progress');
+            const statusText = document.getElementById('status');
+            const processButton = document.getElementById('processButton');
+            
+            if (!fileInput.files.length) {
+                alert('Please select a file');
+                return;
+            }
+            
+            // Reset audio player
+            audioElement.pause();
+            audioElement.src = '';
+            playPauseBtn.textContent = '▶';
+            timeSlider.value = 0;
+            timeDisplay.textContent = '0:00 / 0:00';
+            audioPlayer.style.display = 'none';
+            
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            formData.append('strength', strengthInput.value);
+            formData.append('format', formatSelect.value);
+            
+            try {
+                processButton.disabled = true;
+                progressContainer.style.display = 'block';
+                
+                // Upload file and start processing
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Upload failed');
+                }
+                
+                const data = await response.json();
+                currentTaskId = data.task_id;
+                
+                // Poll for status
+                while (true) {
+                    const statusResponse = await fetch(`/status/${currentTaskId}`);
+                    const statusData = await statusResponse.json();
+                    
+                    progressBar.style.width = `${statusData.progress}%`;
+                    statusText.textContent = statusData.status;
+                    
+                    if (statusData.error) {
+                        throw new Error(statusData.status);
+                    }
+                    
+                    if (statusData.progress === 100) {
+                        // Set up audio preview
+                        audioElement.src = `/download/${currentTaskId}`;
+                        audioPlayer.style.display = 'block';
+                        document.getElementById('downloadBtn').disabled = false;
+                        break;
+                    }
+                    
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                }
+                
+            } catch (error) {
+                statusText.textContent = `Error: ${error.message}`;
+                statusText.classList.add('error');
+            } finally {
+                processButton.disabled = false;
+            }
+        }
+        
+        async function downloadAudio() {
+            if (currentTaskId) {
+                const link = document.createElement('a');
+                link.href = `/download/${currentTaskId}`;
+                link.setAttribute('download', ''); // Force download
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+        }
+    </script>
+</body>
+</html> 
