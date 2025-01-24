@@ -19,9 +19,12 @@ A web-based application that reduces background noise from audio files using spe
 
 ## Installation
 
-1. Clone the repository: 
+1. Clone the repository:
+   
+```
 git clone [https://github.com/arvind-git-code/noise_remover-webapp.git](https://github.com/arvind-git-code/noise_remover-webapp.git)
 cd audio-noise-reducer
+```
 
 2. Create and activate a virtual environment (recommended):
 ```bash
@@ -141,9 +144,20 @@ Tested and supported on:
 4. Push to the branch
 5. Create a Pull Request
 
+
+## Connect with me
+
+- **Name:** Arvind Kumar
+- **LinkedIn:** [LinkedIn Profile URL](https://www.linkedin.com/in/arvind-kumar-a8b591221/)
+- **Email:** [Email](mailto:arvindkumarlbsmca@gmail.com)
+
+
+
 ## License
 
-[Add your license information here]
+Feel free to use anywhere
+
+
 
 ## Acknowledgments
 
